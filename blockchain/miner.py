@@ -6,9 +6,14 @@ import sys
 from uuid import uuid4
 
 from timeit import default_timer as timer
-
+import json
 import random
+import time
 
+def hash(string):
+    encode_string = string.encode()
+    hash_string = hashlib.sha256(encode_string).hexdigest()
+    return hash_string
 
 def proof_of_work(last_proof):
     """
@@ -26,9 +31,13 @@ def proof_of_work(last_proof):
     proof = 0
     #  TODO: Your code here
 
+    block_string = json.dumps(last_proof, sort_keys=True)
+    last_hash = hash(str(block_string))
+    while valid_proof(last_hash, str(proof)) == False:
+        proof += 1
+
     print("Proof found: " + str(proof) + " in " + str(timer() - start))
     return proof
-
 
 def valid_proof(last_hash, proof):
     """
@@ -40,7 +49,16 @@ def valid_proof(last_hash, proof):
     """
 
     # TODO: Your code here!
-    pass
+
+    guess_hash = hash(proof)
+    print(" last hash: ",last_hash)
+    print("guess hash: ",guess_hash)
+    # time.sleep(.2)
+
+    if last_hash[-6:] == guess_hash[:6]:
+        return True
+    else:
+        return False
 
 
 if __name__ == '__main__':
@@ -49,7 +67,8 @@ if __name__ == '__main__':
         node = sys.argv[1]
     else:
         node = "https://lambda-coin.herokuapp.com/api"
-
+        # node = "https://lambda-coin-test-1.herokuapp.com/api"
+        
     coins_mined = 0
 
     # Load or create ID
@@ -61,11 +80,14 @@ if __name__ == '__main__':
     if id == 'NONAME\n':
         print("ERROR: You must change your name in `my_id.txt`!")
         exit()
-    # Run forever until interrupted
-    while True:
+
+    # Mine 1 coin only
+    logic = True
+    while logic == True:
         # Get the last proof from the server
         r = requests.get(url=node + "/last_proof")
         data = r.json()
+        # print(data)
         new_proof = proof_of_work(data.get('proof'))
 
         post_data = {"proof": new_proof,
@@ -76,5 +98,6 @@ if __name__ == '__main__':
         if data.get('message') == 'New Block Forged':
             coins_mined += 1
             print("Total coins mined: " + str(coins_mined))
+            logic = False
         else:
             print(data.get('message'))
